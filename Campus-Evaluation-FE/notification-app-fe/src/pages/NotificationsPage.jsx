@@ -1,0 +1,58 @@
+import { useState, useEffect } from "react";
+import { Alert, Badge, Box, CircularProgress, Divider, Pagination, Stack, Typography } from "@mui/material";
+import NotificationsIcon from "@mui/icons-material/Notifications";
+import { NotificationCard } from "../components/NotificationCard";
+import { NotificationFilter } from "../components/NotificationFilter";
+import { useNotifications } from "../hooks/useNotifications";
+
+const VIEWED_KEY = "viewed_notifications";
+
+export function NotificationsPage() {
+  const [filter, setFilter] = useState("All");
+  const [page, setPage] = useState(1);
+  const [viewed, setViewed] = useState(() => {
+    return JSON.parse(localStorage.getItem(VIEWED_KEY) || "[]");
+  });
+
+  const { notifications, totalPages, loading, error } = useNotifications(filter, page);
+
+  useEffect(() => {
+    if (notifications.length > 0) {
+      const newViewed = [...new Set([...viewed, ...notifications.map(n => n.ID)])];
+      setViewed(newViewed);
+      localStorage.setItem(VIEWED_KEY, JSON.stringify(newViewed));
+    }
+  }, [notifications]);
+
+  const unreadCount = notifications.filter(n => !viewed.includes(n.ID)).length;
+
+  return (
+    <Box sx={{ maxWidth: 720, mx: "auto", px: 2, py: 4 }}>
+      <Stack direction="row" alignItems="center" spacing={1.5} mb={3}>
+        <Badge badgeContent={unreadCount} color="primary" max={99}>
+          <NotificationsIcon sx={{ fontSize: 28 }} />
+        </Badge>
+        <Typography variant="h5" fontWeight={700}>Notifications</Typography>
+      </Stack>
+      <Divider sx={{ mb: 3 }} />
+      <Box sx={{ mb: 3 }}>
+        <NotificationFilter value={filter} onChange={(f) => { setFilter(f); setPage(1); }} />
+      </Box>
+      {loading && <Box display="flex" justifyContent="center" py={6}><CircularProgress /></Box>}
+      {!loading && error && <Alert severity="error">Failed to load: {error}</Alert>}
+      {!loading && !error && notifications.length === 0 && <Alert severity="info">No notifications found.</Alert>}
+      {!loading && !error && notifications.length > 0 && (
+        <Stack spacing={1.5}>
+          {notifications.map((n) => (
+            <NotificationCard key={n.ID} notification={n} isNew={!viewed.includes(n.ID)} />
+          ))}
+        </Stack>
+      )}
+      {!loading && (
+        <Box display="flex" justifyContent="center" mt={4}>
+          <Pagination count={totalPages} page={page} onChange={(_, p) => setPage(p)} color="primary" shape="rounded" />
+        </Box>
+      )}
+    </Box>
+  );
+}
